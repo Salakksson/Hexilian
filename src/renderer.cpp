@@ -1,7 +1,10 @@
 #include "renderer.h"
 
-#include <rlgl.h>
-#include <raymath.h>
+#include "config.h"
+
+#include <math.h>
+#include <stdio.h>
+#include "vector2.h"
 
 Renderer::Renderer(int x, int y)
 {
@@ -91,7 +94,9 @@ void Renderer::end()
 	if (cam_enabled) EndMode2D();
 	cam_enabled = false;
 
-	DrawFPS(5, 5);
+#if DRAW_FPS
+	draw_text(5, 5, "FPS: %i", GetFPS());
+#endif
 	EndDrawing();
 }
 
@@ -115,6 +120,28 @@ Vector2 Renderer::mouse_pos_world()
 {
 	Vector2 pos = GetMousePosition();
 	return GetScreenToWorld2D(pos, cam);
+}
+
+void Renderer::draw_text(int x, int y, const char* fmt, ...)
+{
+	bool cam = cam_enabled;
+	end_cam();
+
+	va_list args;
+	va_list copy;
+	va_start(args, fmt);
+	va_copy(copy, args);
+
+	size_t size = vsnprintf(0, 0, fmt, args);
+	char* text = (char*)alloca(size);
+	vsnprintf(text, size, fmt, copy);
+
+	Vector2 position = {(float)x, (float)y};
+	DrawTextEx(font, text, position, 30, 0, GetColor(0xc0caf5ff));
+	va_end(args);
+	va_end(copy);
+
+	if (cam) begin_cam();
 }
 
 Renderer::~Renderer()

@@ -1,23 +1,14 @@
 #ifndef GRID_H_
 #define GRID_H_
 
+#include "coord.h"
+#include "config.h"
+
 #include <stdexcept>
-#include <format>
 #include <unordered_map>
 #include <vector>
 #include <raylib.h>
 #include <cmath>
-
-#define CHUNK_SIZE 8
-
-#define DRAW_CHUNK_BORDERS 0
-#define CUTOFF_CORNERS 0
-#define DEBUG_TEXT 1
-#define TOUCH_ON_PLACE 1
-#define DRAW_BG 1
-#define DRAW_PIECES 1
-#define OPTIMISE_OFFSCREEN_CHUNKS 0
-#define SMALL_VIEWPORT 0
 
 enum Piece
 {
@@ -25,100 +16,6 @@ enum Piece
 	PIECE_CROSS = 1,
 	PIECE_CIRCLE = 2,
 };
-
-#define FLOOR_DIV(a, b) ((int)floor((double)(a) / (b)))
-#define FLOOR_MOD(a, b) ((a) - (FLOOR_DIV((a), (b)) * (b)))
-
-struct Coord
-{
-	int x = 0;
-	int y = 0;
-
-	constexpr bool operator==(const Coord& other) const
-	{
-		return x == other.x && y == other.y;
-	}
-
-	constexpr bool operator!=(const Coord& other) const
-	{
-		return x != other.x || y != other.y;
-	}
-
-	constexpr Coord (int x, int y): x(x), y(y) {}
-	constexpr Coord () {}
-
-	constexpr Coord chunk() const
-	{
-		return Coord (
-			FLOOR_DIV(x, CHUNK_SIZE),
-			FLOOR_DIV(y, CHUNK_SIZE)
-		);
-	}
-
-	constexpr Coord tile() const
-	{
-		return Coord (
-			FLOOR_MOD(x, CHUNK_SIZE),
-			FLOOR_MOD(y, CHUNK_SIZE)
-		);
-	}
-};
-
-constexpr inline Coord operator*(Coord vect, float f) {
-	return Coord (vect.x * f, vect.y * f );
-}
-
-constexpr inline Coord operator/(Coord vect, float f) {
-	return Coord (vect.x / f, vect.y / f );
-}
-
-constexpr inline Coord operator+(Coord a, Coord b) {
-	return Coord (a.x + b.x, a.y + b.y );
-}
-
-constexpr inline Coord operator-(Coord a, Coord b) {
-	return Coord (a.x - b.x, a.y - b.y );
-}
-
-constexpr inline Coord operator*=(Coord& coord, float f) {
-	return coord = coord * f;
-}
-
-constexpr inline Coord operator/=(Coord& coord, float f) {
-	return coord = coord / f;
-}
-
-constexpr inline Coord operator+=(Coord& a, Coord b) {
-	return a = a + b;
-}
-
-constexpr inline Coord operator-=(Coord& a, Coord b) {
-	return a = a - b;
-}
-
-constexpr inline Coord operator*(Coord a, Coord b) {
-	return Coord ( a.x * b.x, a.y * b.y);
-}
-
-constexpr inline Coord operator/(Coord a, Coord b) {
-	return Coord (a.x / b.x, a.y / b.y);
-}
-
-constexpr inline Coord operator*=(Coord& a, Coord b) {
-	return a = a * b;
-}
-
-constexpr inline Coord operator/=(Coord& a, Coord b) {
-	return a = a / b;
-}
-
-constexpr inline Coord world_coord(Coord chunk, Coord tile)
-{
-	return Coord (
-		chunk.x * CHUNK_SIZE + tile.x,
-		chunk.y * CHUNK_SIZE + tile.y
-	);
-}
 
 struct Chunk
 {

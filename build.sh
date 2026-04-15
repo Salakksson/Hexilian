@@ -32,6 +32,8 @@ objects=""
 PIDS=""
 for file in src/*.cpp; do
 	(
+		start_time=$(date +%s%N)
+
 		out=${file/src/bin}.o
 
 		if test $out -nt $file; then
@@ -44,6 +46,11 @@ for file in src/*.cpp; do
 			echo "failed to compile $file"
 			exit 1
 		fi
+
+		end_time=$(date +%s%N)
+
+		time_taken="$(( (end_time - start_time)/1000000 ))"
+		echo "finished compiling $file in $time_taken ms"
 	) &
 	PIDS="$PIDS $!"
 done

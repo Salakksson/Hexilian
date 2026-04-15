@@ -2,7 +2,6 @@
 #define RENDERER_H_
 
 #include <raylib.h>
-#include <string>
 
 struct Renderer
 {
@@ -30,7 +29,7 @@ struct Renderer
 	void begin_cam();
 	void end_cam();
 
-	void draw_text(std::string str, int x, int y);
+	void draw_text(int x, int y, const char* fmt, ...);
 
 	Vector2 mouse_pos_world();
 

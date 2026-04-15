@@ -1,12 +1,11 @@
 #include "grid.h"
 
 #include <raylib.h>
-#include <format>
 
 #include "renderer.h"
-#include "operators.h"
+#include "vector2.h"
 
-#define SQRT3 1.7320508075f
+constexpr float SQRT3 = std::sqrt(3);
 
 Vector2 coord_center(Coord coord)
 {
@@ -103,14 +102,12 @@ void draw_empty_grid()
 				0.5,
 				30,
 				width,
-				GetColor(0xc0caf5ff)
+				GetColor(0xc0caf53f)
 			);
 		}
 	}
 #if DEBUG_TEXT
-	rend.end_cam();
-	DrawText(std::format("Hexagons drawn: {}", count).c_str(), 5, 45, 20, GetColor(0xffffffff));
-	rend.begin_cam();
+	rend.draw_text(5, 45, "Hexagons drawn: %i", count);
 #endif
 }
 
@@ -227,7 +224,7 @@ int Grid::which_corner(Coord chunk)
 	return 0;
 }
 
-inline Rectangle chunk_border(Coord chunk)
+inline Rectangle chunk_box(Coord chunk)
 {
 	constexpr Vector2 chunk_size = {
 		-0.5 + 1.5 * (float)CHUNK_SIZE,
@@ -256,7 +253,7 @@ inline bool is_chunk_on_screen(Coord chunk)
 {
 #if OPTIMISE_OFFSCREEN_CHUNKS
 	return CheckCollisionRecs (
-		chunk_border(chunk),
+		chunk_box(chunk),
 		rend.world_viewport
 	);
 #else
@@ -305,11 +302,25 @@ void Grid::draw()
 	draw_empty_grid();
 #endif
 
-#if DRAW_CHUNK_BORDERS
+#if DRAW_CHUNK_BOXES
 	for (auto i : chunks)
 	{
 		Coord chunk = i.first;
-		DrawRectangleLinesEx(chunk_border(chunk), 0.02, GetColor(0xffffffff));
+		DrawRectangleLinesEx(chunk_box(chunk), 0.02, WHITE);
+	}
+#endif
+
+#if DRAW_CHUNK_BORDERS
+	for (auto i : chunks)
+	{
+		Coord p1 = i.first * CHUNK_SIZE;
+		Coord p2 = Coord(p1.x + CHUNK_SIZE - 1, p1.y);
+		Coord p3 = Coord(p1.x + CHUNK_SIZE - 1, p1.y + CHUNK_SIZE - 1);
+		Coord p4 = Coord(p1.x, p1.y + CHUNK_SIZE - 1);
+		DrawLineEx(coord_center(p1), coord_center(p2), 0.02, WHITE);
+		DrawLineEx(coord_center(p2), coord_center(p3), 0.02, WHITE);
+		DrawLineEx(coord_center(p3), coord_center(p4), 0.02, WHITE);
+		DrawLineEx(coord_center(p4), coord_center(p1), 0.02, WHITE);
 	}
 #endif
 
@@ -319,9 +330,7 @@ void Grid::draw()
 	}
 
 #if DEBUG_TEXT
-	rend.end_cam();
-	DrawText(std::format("Chunks drawn: {}", count).c_str(), 5, 25, 20, GetColor(0xffffffff));
-	rend.begin_cam();
+	rend.draw_text(5, 25, "Chunks drawn: %i", count);
 #endif
 
 }
