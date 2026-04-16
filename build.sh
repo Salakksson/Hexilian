@@ -7,7 +7,7 @@ CXX=g++
 SANITIZER=""
 # SANITIZER="-fsanitize=address"
 
-CXXFLAGS="-Wall -Wpedantic -Werror -g -Og -std=c++20 $SANITIZER"
+CXXFLAGS="-Wall -Wpedantic -Werror -g -O3 -std=c++20 $SANITIZER"
 LDFLAGS="$SANITIZER -lraylib"
 
 mkdir -p bin

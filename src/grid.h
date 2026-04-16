@@ -10,17 +10,17 @@
 #include <raylib.h>
 #include <cmath>
 
-enum Piece
+enum class Piece
 {
-	PIECE_NONE = 0,
-	PIECE_CROSS = 1,
-	PIECE_CIRCLE = 2,
+	none = 0,
+	cross = 1,
+	circle = 2,
 };
 
 struct Chunk
 {
 private:
-	Piece arr[CHUNK_SIZE * CHUNK_SIZE] = {PIECE_NONE};
+	Piece arr[CHUNK_SIZE * CHUNK_SIZE] = {Piece::none};
 public:
 
 	bool empty = true;
@@ -49,7 +49,7 @@ public:
 	inline void clear()
 	{
 		for (int i = 0; i < CHUNK_SIZE * CHUNK_SIZE; i++)
-			arr[i] = PIECE_NONE;
+			arr[i] = Piece::none;
 		empty = true;
 	}
 
@@ -73,27 +73,71 @@ namespace std
 	};
 }
 
-struct Grid
+struct Line
+{
+	int moveno_added;
+	int moveno_removed;
+	int length;
+	Coord start;
+	Coord end;
+	Coord dir;
+	// important:  start + dir * length = end
+	// this means start is always left* of end
+};
+
+class Grid
 {
 	std::unordered_map<Coord, Chunk> chunks;
+	std::vector<Line> old_lines;
 
-	inline Piece get_at(Coord coord)
-	{
-		return chunks[coord].get_at(coord.tile());
-	}
-
-	Piece turn = PIECE_CROSS;
-	int n_turns = 1;
+	static constexpr Coord offset = Coord(CHUNK_SIZE / 2, CHUNK_SIZE / 2);
 
 	int which_corner(Coord chunk);
 	void touch_single_chunk(Coord chunk);
 	void touch_chunk(Coord chunk);
 
-	void place(Coord coord, Piece p);
+	void draw_hex(Coord coord, Piece p);
+
+	void add_lines(Coord center, Piece added);
+	void remove_lines(Coord center, Piece removed);
+	void update_lines(Coord center, Piece owner);
+
+public:
+	Piece turn = Piece::cross;
+	int n_turns = 1;
+
+	int moveno = 0;
+	bool is_won = false;
+
+	std::vector<Line> lines;
+	std::vector<Coord> moves;
+
+	inline Grid clone()
+	{
+		Grid grid;
+		grid.chunks = this->chunks;
+		grid.turn = this->turn;
+		grid.n_turns = this->n_turns;
+		grid.old_lines = this->old_lines;
+		grid.moveno = this->moveno;
+		grid.is_won = this->is_won;
+		grid.lines = this->lines;
+		return grid;
+	}
+
+	inline Piece get_at(Coord coord)
+	{
+		return chunks[coord.chunk()].get_at(coord.tile());
+	}
+
+	bool is_empty(Coord coord);
+	bool is_equal(Coord coord, Piece piece);
+
+	// void place(Coord coord, Piece p);
 	void play(Coord coord);
 	void unplay(Coord coord);
+	void unplay();
 	void draw();
-
 };
 
 Vector2 coord_center(Coord coord);

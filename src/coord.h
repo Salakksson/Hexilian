@@ -42,6 +42,16 @@ struct Coord
 			FLOOR_MOD(y, CHUNK_SIZE)
 		);
 	}
+
+	inline int dist() const
+	{
+		int sum = abs(x) + abs(y);
+		if ((x < 0) != (y < 0))
+		{
+			sum -= std::min(abs(x), abs(y));
+		}
+		return sum;
+	}
 };
 
 constexpr inline Coord operator*(Coord vect, float f) {

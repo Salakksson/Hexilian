@@ -11,24 +11,38 @@ struct Game
 {
 	Grid grid;
 	Engine engine;
-	Human human;
+	Player player;
 
-	std::stack<Coord> past_moves;
 	void tick()
 	{
-		if (IsKeyPressed(KEY_U) && !past_moves.empty())
+		if (IsKeyPressed(KEY_U))
 		{
-			grid.unplay(past_moves.top());
-			past_moves.pop();
+			TraceLog(LOG_WARNING, "undoing");
+			grid.unplay();
 		}
-		human.step();
-		if (human.move_ready)
+		if (grid.turn == Piece::circle)
 		{
-			Coord move = human.take_move();
+			engine.update(grid);
+			engine.think();
+			Move m = engine.take_move();
+			if (m.c1 == Coord() || m.c2 == Coord())
+			{
+				TraceLog(LOG_WARNING, "no move made");
+			}
+			grid.play(m.c1);
+			grid.play(m.c2);
+		}
+		else
+		{
+			player.step();
+			if (player.move_ready)
+			{
+				Coord move = player.take_move();
 
-			grid.play(move);
-			past_moves.push(move);
+				grid.play(move);
+			}
 		}
+
 	}
 };
 

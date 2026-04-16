@@ -14,7 +14,7 @@ Renderer::Renderer(int x, int y)
 	SetTraceLogLevel(LOG_WARNING);
 	SetConfigFlags(FLAG_WINDOW_RESIZABLE);
 	SetConfigFlags(FLAG_MSAA_4X_HINT);
-	SetTargetFPS(0);
+	SetTargetFPS(60);
 
 	InitWindow(width, height, "_");
 
@@ -116,6 +116,16 @@ void Renderer::end_cam()
 	cam_enabled = false;
 }
 
+Vector2 Renderer::world_to_screen(Vector2 vec)
+{
+	return GetWorldToScreen2D(vec, cam);
+}
+
+Vector2 Renderer::screen_to_world(Vector2 vec)
+{
+	return GetScreenToWorld2D(vec, cam);
+}
+
 Vector2 Renderer::mouse_pos_world()
 {
 	Vector2 pos = GetMousePosition();
@@ -132,7 +142,7 @@ void Renderer::draw_text(int x, int y, const char* fmt, ...)
 	va_start(args, fmt);
 	va_copy(copy, args);
 
-	size_t size = vsnprintf(0, 0, fmt, args);
+	size_t size = vsnprintf(0, 0, fmt, args) + 1;
 	char* text = (char*)alloca(size);
 	vsnprintf(text, size, fmt, copy);
 

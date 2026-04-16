@@ -31,6 +31,8 @@ struct Renderer
 
 	void draw_text(int x, int y, const char* fmt, ...);
 
+	Vector2 world_to_screen(Vector2 vec);
+	Vector2 screen_to_world(Vector2 vec);
 	Vector2 mouse_pos_world();
 
 	Renderer(int x, int y);

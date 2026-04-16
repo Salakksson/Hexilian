@@ -7,6 +7,16 @@
 
 constexpr float SQRT3 = std::sqrt(3);
 
+constexpr Coord hex_directions[6] = {
+	// Where z = x - y:
+	{1, 0},  // +x
+	{0, 1},  // +y
+	{1, -1}, // +z
+	{-1, 0}, // -x
+	{0, -1}, // -y
+	{-1, 1}, // -z
+};
+
 Vector2 coord_center(Coord coord)
 {
 	Vector2 pos = {
@@ -51,9 +61,9 @@ Color piece_color(Piece p)
 {
 	switch (p)
 	{
-	case PIECE_NONE: return GetColor(0x1a1b26ff);
-	case PIECE_CROSS: return GetColor(0xf7768eff);
-	case PIECE_CIRCLE: return GetColor(0x0db9d7ff);
+	case Piece::none: return GetColor(0x1a1b26ff);
+	case Piece::cross: return GetColor(0xf7768eff);
+	case Piece::circle: return GetColor(0x0db9d7ff);
 	default: return WHITE;
 	}
 }
@@ -104,6 +114,13 @@ void draw_empty_grid()
 				width,
 				GetColor(0xc0caf53f)
 			);
+			// Vector2 text_pos = rend.world_to_screen(pos);
+			// rend.draw_text(
+			//	text_pos.x - 10,
+			//	text_pos.y - 10,
+			//	"%i",
+			//	coord.dist()
+			// );
 		}
 	}
 #if DEBUG_TEXT
@@ -112,9 +129,11 @@ void draw_empty_grid()
 }
 
 
-void draw_hex(Coord coord, Piece p)
+void Grid::draw_hex(Coord coord, Piece p)
 {
-	if (p == PIECE_NONE) return;
+	coord -= offset;
+
+	if (p == Piece::none) return;
 	Vector2 pos = coord_center(coord);
 
 	// full is SQRT3/2
@@ -139,18 +158,135 @@ void Grid::touch_chunk(Coord chunk)
 		}
 }
 
-void Grid::place(Coord coord, Piece p)
+void Grid::add_lines(Coord center, Piece added)
 {
-#if TOUCH_ON_PLACE
-	touch_chunk(coord.chunk());
-#endif
-	chunks[coord.chunk()].set_at(coord.tile(), p);
+	// remove any lines we are connecting with
+	std::erase_if(lines, [this, center, added](Line& l) {
+
+		if (!is_equal(l.start, added)) return false;
+
+		if (l.start == center + l.dir)
+		{
+			l.moveno_removed = this->moveno;
+			this->old_lines.push_back(l);
+			return true;
+		}
+
+
+		if (l.end == center - l.dir)
+		{
+			l.moveno_removed = this->moveno;
+			this->old_lines.push_back(l);
+			return true;
+		}
+
+		return false;
+	});
+
+	// only iterate over "positive" axis
+	// so that Line.dir is always "positive"
+	for (int i = 0; i < 3; i++)
+	{
+		Coord dir = hex_directions[i];
+
+		int len = 1;
+		Coord start = center;
+		Coord end = center;
+
+		// extend in positive direction
+		for (int j = 1; j < 6; j++)
+		{
+			Coord coord = center + (dir * j);
+			if (!is_equal(coord, added)) break;
+
+			// extend
+			end = coord;
+			len++;
+		}
+
+		// negative
+		for (int j = 1; j < 6; j++)
+		{
+			Coord coord = center - (dir * j);
+			if (!is_equal(coord, added)) break;
+
+			// extend
+			start = coord;
+			len++;
+		}
+
+		if (len > 1) {
+			Line l = {
+				.moveno_added = moveno,
+				.length = len,
+				.start = start,
+				.end = end,
+				.dir = dir,
+			};
+			lines.push_back(l);
+
+			if (len >= 6) is_won = true;
+		}
+	}
 }
+
+void Grid::remove_lines(Coord center, Piece removed)
+{
+	// lines that are being removed
+	std::erase_if(lines, [this](Line l) {
+		return l.moveno_added == this->moveno;
+	});
+
+	// lines that are being re-added
+	std::erase_if(old_lines, [this](Line l) {
+		if (l.moveno_removed == this->moveno)
+		{
+			this->lines.push_back(l);
+			return true;
+		}
+		return false;
+	});
+}
+
+void Grid::update_lines(Coord center, Piece owner)
+{
+	if (get_at(center) == Piece::none)
+		remove_lines(center, owner);
+	else
+		add_lines(center, owner);
+}
+
+bool Grid::is_empty(Coord coord)
+{
+	if (!chunks.contains(coord.chunk())) return true;
+	Piece p = get_at(coord);
+	return (p == Piece::none);
+}
+
+bool Grid::is_equal(Coord coord, Piece piece)
+{
+	if (!chunks.contains(coord.chunk())) return false;
+	Piece p = get_at(coord);
+	return (p == piece);
+}
+
+// void Grid::place(Coord coord, Piece p)
+// {
+//	TraceLog(LOG_WARNING, "Should not use Grid::place");
+//	coord += offset;
+// #if TOUCH_ON_PLACE
+//	touch_chunk(coord.chunk());
+// #endif
+//	chunks[coord.chunk()].set_at(coord.tile(), p);
+
+//	update_lines(coord, p);
+// }
 
 void Grid::play(Coord coord)
 {
+	coord += offset;
 	// tile already taken
-	if (chunks[coord.chunk()].get_at(coord.tile()) != PIECE_NONE)
+	if (!is_empty(coord))
 		return;
 
 #if TOUCH_ON_PLACE
@@ -158,49 +294,59 @@ void Grid::play(Coord coord)
 #endif
 	chunks[coord.chunk()].set_at(coord.tile(), turn);
 
+	update_lines(coord, turn);
+
 	n_turns--;
 	if (n_turns == 0)
 	{
 		n_turns = 2;
 		switch (turn)
 		{
-		case PIECE_CROSS: turn = PIECE_CIRCLE; break;
-		case PIECE_CIRCLE: turn = PIECE_CROSS; break;
-		default: turn = PIECE_NONE; break;
+		case Piece::cross: turn = Piece::circle; break;
+		case Piece::circle: turn = Piece::cross; break;
+		default: turn = Piece::none; break;
 		}
 	}
+
+	moves.push_back(coord);
+	moveno++;
 }
 
 void Grid::unplay(Coord coord)
 {
-	// tile empty
-	if (chunks[coord.chunk()].get_at(coord.tile()) == PIECE_NONE)
+	coord += offset;
+
+	if (is_empty(coord))
 		return;
 
-	chunks[coord.chunk()].set_at(coord.tile(), PIECE_NONE);
+	chunks[coord.chunk()].set_at(coord.tile(), Piece::none);
 
 	if (n_turns == 2)
 	{
 		n_turns = 0;
 		switch (turn)
 		{
-		case PIECE_CROSS: turn = PIECE_CIRCLE; break;
-		case PIECE_CIRCLE: turn = PIECE_CROSS; break;
-		default: turn = PIECE_NONE; break;
+		case Piece::cross: turn = Piece::circle; break;
+		case Piece::circle: turn = Piece::cross; break;
+		default: turn = Piece::none; break;
 		}
 	}
 
 	n_turns++;
+
+	moveno--;
+	update_lines(coord, turn);
+
+	is_won = false;
+	moves.pop_back();
 }
 
-Coord hex_directions[6] = {
-	{1, 0},
-	{0, 1},
-	{-1, 1},
-	{-1, 0},
-	{0, -1},
-	{1, -1},
-};
+void Grid::unplay()
+{
+	if (moves.empty()) return;
+	Coord move = moves.back();
+	unplay(move);
+}
 
 int Grid::which_corner(Coord chunk)
 {
@@ -263,8 +409,8 @@ inline bool is_chunk_on_screen(Coord chunk)
 
 void Grid::draw()
 {
-	Vector2 mouse = rend.mouse_pos_world();
-	Coord m = vec_to_coord(mouse);
+	// Vector2 mouse = rend.mouse_pos_world();
+	// Coord m = vec_to_coord(mouse);
 
 	int count = 0;
 
@@ -291,8 +437,8 @@ void Grid::draw()
 
 				Coord tile = Coord(x, y);
 				Coord world = world_coord(pos, tile);
-				bool f = (world != m);
-				draw_hex(world, Piece(f ? chunk.get_at(tile) : -1));
+
+				draw_hex(world, chunk.get_at(tile));
 			}
 
 	}
@@ -313,7 +459,7 @@ void Grid::draw()
 #if DRAW_CHUNK_BORDERS
 	for (auto i : chunks)
 	{
-		Coord p1 = i.first * CHUNK_SIZE;
+		Coord p1 = i.first * CHUNK_SIZE - offset;
 		Coord p2 = Coord(p1.x + CHUNK_SIZE - 1, p1.y);
 		Coord p3 = Coord(p1.x + CHUNK_SIZE - 1, p1.y + CHUNK_SIZE - 1);
 		Coord p4 = Coord(p1.x, p1.y + CHUNK_SIZE - 1);
@@ -324,13 +470,25 @@ void Grid::draw()
 	}
 #endif
 
+#if DRAW_LINES
+	for (Line l : lines)
+	{
+		DrawLineEx(
+			coord_center(l.start - offset),
+			coord_center(l.end - offset),
+			0.1,
+			RED
+		);
+	}
+#endif
 	if (chunks.empty())
 	{
-		draw_hex(Coord(0, 0), PIECE_NONE);
+		draw_hex(Coord(0, 0), Piece::none);
 	}
 
 #if DEBUG_TEXT
 	rend.draw_text(5, 25, "Chunks drawn: %i", count);
+	rend.draw_text(5, 65, "Lines: %i", lines.size());
 #endif
 
 }

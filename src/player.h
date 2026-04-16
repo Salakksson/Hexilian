@@ -4,7 +4,7 @@
 #include "grid.h"
 #include "renderer.h"
 
-struct Human
+struct Player
 {
 	Coord move;
 	bool move_ready;
